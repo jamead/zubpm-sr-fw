@@ -26,7 +26,7 @@ void dma_arm() {
 	//u32 *adc_ptr, *tbt_ptr, *fa_ptr;
 	u32 adclen, tbtlen, falen;
 
-	xil_printf("Arming DMA...\r\n");
+	//xil_printf("Arming DMA...\r\n");
 	//Disable the ADC,TbT,FA DMA logic (trig_logic.vhd)
 	//xil_printf("   Disable DMA\r\n");
 	//Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_ADCENABLE_REG, 0);
@@ -39,9 +39,9 @@ void dma_arm() {
 	tbtlen = Xil_In32(XPAR_M_AXI_BASEADDR + DMA_TBTBURSTLEN_REG);
 	falen = Xil_In32(XPAR_M_AXI_BASEADDR + DMA_FABURSTLEN_REG);
 
-	xil_printf("   DMA ADC Length = %d\r\n",adclen);
-	xil_printf("   DMA TbT Length = %d\r\n",tbtlen);
-	xil_printf("   DMA FA Length = %d\r\n",falen);
+	//xil_printf("   DMA ADC Length = %d\r\n",adclen);
+	//xil_printf("   DMA TbT Length = %d\r\n",tbtlen);
+	//xil_printf("   DMA FA Length = %d\r\n",falen);
 
 	//clear the DMA memory, not necessary, already Invalidated it.
 	//adc_ptr = (u32 *) ADC_DMA_DATA;
@@ -250,7 +250,7 @@ static void dmadata_push(void *unused)
         trignum = Xil_In32(XPAR_M_AXI_BASEADDR + DMA_TRIGCNT_REG);
 
         if (trignum != prevtrignum) {
-            xil_printf("Received DMA Trigger Number: %d \r\n",trignum);
+            //xil_printf("Received DMA Trigger Number: %d \r\n",trignum);
             //Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_ADCENABLE_REG, 0);
             //Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_TBTENABLE_REG, 0);
             //Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_FAENABLE_REG, 0);

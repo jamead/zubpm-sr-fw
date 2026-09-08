@@ -108,7 +108,7 @@ static void brdstats_push(void *unused)
 
 
         //read FPGA version (git checksum) from PL register
-        msg.githash = Xil_In32(XPAR_M_AXI_BASEADDR + GIT_SHASUM);
+        msg.githash = htonl(Xil_In32(XPAR_M_AXI_BASEADDR + GIT_SHASUM));
 
         //read DFE temperature from i2c bus
         i2c_set_port_expander(I2C_PORTEXP1_ADDR,1);

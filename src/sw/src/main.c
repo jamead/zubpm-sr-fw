@@ -76,7 +76,7 @@ void print_firmware_version()
   time_t epoch_time;
   struct tm *human_time;
   char timebuf[80];
-
+  xil_printf("SR BPM firmware...\r\n");
   xil_printf("Module ID Number: %x\r\n", Xil_In32(XPAR_M_AXI_BASEADDR + MOD_ID_NUM));
   xil_printf("Module Version Number: %x\r\n", Xil_In32(XPAR_M_AXI_BASEADDR + MOD_ID_VER));
   xil_printf("Project ID Number: %x\r\n", Xil_In32(XPAR_M_AXI_BASEADDR + PROJ_ID_NUM));
@@ -242,48 +242,25 @@ int main()
     usleep(10000);
 
 
-    xil_printf("Reading Si569 VCXO via i2c\r\n");
-    read_si569();
-    sleep(1);
+    xil_printf("Programming Si569 VCXO via i2c\r\n");
+    //read_si569();
+    //sleep(1);
     prog_si569();
     sleep(1);
-    read_si569();
-    sleep(1);
+    //read_si569();
+    //sleep(1);
 
     // oscillator for EVR reference clock
 	xil_printf("Init lmk1e2...\r\n");
     write_lmk61e2();
 
-    /*
-    ina226_init();
-    u16 reg_val;
-    float val, v, i, p;
 
-    while (1) {
-    	ina226_read_reg(0x00,&reg_val);
-    	printf("Config Reg: %x\n",reg_val);
-    	ina226_read_reg(0x05,&reg_val);
-    	printf("Calib Reg: %x\n",reg_val);
-    	ina226_read_reg(0xFE,&reg_val);
-    	printf("Manufacturer ID: %x\n",reg_val);
-        v = ina226_read_bus_voltage();
-        i = ina226_read_current();
-        p = ina226_read_power();
-        printf("INA226: V=%f   I=%f   P=%f\n",v,i,p);
-    	sleep(1);
-
-
-
-       //sleep(1);
-    }
-    */
 
     // Disable Switching
     Xil_Out32(XPAR_M_AXI_BASEADDR + SWRFFE_ENB_REG, 0);
 
     // Enable 101Tap DDC FP Filt
 	Xil_Out32(XPAR_M_AXI_BASEADDR + DDC_LPFILT_SEL_REG, 0);
-
 
 
 
@@ -305,6 +282,18 @@ int main()
 	Xil_Out32(XPAR_M_AXI_BASEADDR + EVR_RST_REG, 0);
     usleep(1000);
 
+    //Set Event to 32
+    xil_printf("Setting Trigger Number to 32\r\n");
+	Xil_Out32(XPAR_M_AXI_BASEADDR + EVR_DMA_TRIGNUM_REG, 32);
+
+	//Set Trigger Source to EVR
+    xil_printf("Setting Trigger Source to EVR\r\n");
+    Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_TRIGSRC_REG, 0l);
+
+    //Set Event source to EVR
+   	xil_printf("Setting Event Source to EXT\r\n");
+   	Xil_Out32(XPAR_M_AXI_BASEADDR + EVENT_SRC_SEL_REG, 1);
+
     //read Timestamp
     for (i=0;i<5;i++) {
        ts_s = Xil_In32(XPAR_M_AXI_BASEADDR + EVR_TS_S_REG);
@@ -317,6 +306,9 @@ int main()
 	Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_ADCBURSTLEN_REG, 10000);
 	Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_TBTBURSTLEN_REG, 10000);
 	Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_FABURSTLEN_REG, 1000);
+
+
+
 
     // TODO:  This doesn't work
     //xil_printf("System is about to reset...\n");
