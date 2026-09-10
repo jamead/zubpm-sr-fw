@@ -237,6 +237,14 @@ reg {
   } ioc_access @0x70;  
   
   
+reg {
+    desc="Machine Select 0=SR, 1=Booster";
+    default sw = rw;
+    default hw = r;
+    field {} data[2];
+  } mach_sel @0x74;   
+  
+  
 
 reg {
     desc="Kx";

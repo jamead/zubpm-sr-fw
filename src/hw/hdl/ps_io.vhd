@@ -68,6 +68,8 @@ begin
 fp_leds <= reg_o.FP_LEDS.val.data;
 ioc_access <= reg_o.ioc_access.data.data(0);
 
+reg_o_tbt.mach_sel <= reg_o.mach_sel.data.data;
+
 reg_o_therm.spi_we <= reg_o.therm_spi.data.swmod;
 reg_o_therm.spi_wdata <= reg_o.therm_spi.data.data;
 reg_o_therm.sel <= reg_o.therm_sel.data.data;

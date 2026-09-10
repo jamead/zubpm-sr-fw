@@ -34,7 +34,6 @@ entity dsp_cntrl is
     adc_clk         : in std_logic;              
     tbt_extclk      : in std_logic;  
     reset	        : in std_logic; 
-    machine_sel     : in std_logic_vector(2 downto 0);
     tbt_params      : in t_reg_o_tbt;
     inttrig_enb     : in  std_logic;
     evrsync_cnt     : in  std_logic;
@@ -84,8 +83,7 @@ architecture rtl of dsp_cntrl is
   signal fa_cnt           : std_logic_vector(7 downto 0);
   signal sa_cnt           : std_logic_vector(19 downto 0);
   signal tbt_cnt_int      : std_logic_vector(8 downto 0);
-
-  signal mach_alsorbstr   : std_logic;
+  
   signal sa_count_i       : std_logic_vector(31 downto 0);
   
   signal evr_sa_trig_s1   : std_logic;
@@ -244,8 +242,7 @@ process (adc_clk, reset)
 	     tbt_trig_int  <= '0';
 	     tbt_cnt_int   <= (others => '0');
       elsif (adc_clk'event and adc_clk = '1') then
-				if ((tbt_cnt_int = x"4C")  AND (machine_sel = "000")) OR     --ALS 
-                   ((tbt_cnt_int = x"3D")  AND (machine_sel = "011")) OR     --NSLSII Booster
+                if ((tbt_cnt_int = x"3D")  AND (tbt_params.mach_sel = "01")) OR     --NSLSII Booster
 				   (tbt_cnt_int = x"135")  then   --NSLSII SR
 						tbt_trig_int <= '1';
 						tbt_cnt_int  <= (others => '0');
@@ -302,7 +299,7 @@ process (adc_clk, reset)
 -- Choices are external tbt_trig, booster_tbt or internal tbt
 
 tbt_trig_sel <= tbt_trig_int when (inttrig_enb = '0') else
-              booster_trig when (machine_sel = "011")  else
+              booster_trig when (tbt_params.mach_sel = "01")  else
               tbt_trig_ext;
 
 tbt_sel : process (adc_clk, reset)
@@ -376,7 +373,7 @@ process (adc_clk, reset)
    end process;
 
 
-mach_alsorbstr <= '1' when (machine_sel = "000" OR machine_sel = "011") else '0';
+
 
 --generate fa_trig
 process (adc_clk, reset)
@@ -390,9 +387,8 @@ process (adc_clk, reset)
 				    fa_cnt <= (others => '0');
 				end if;
 				if (tbt_trig_r = '1') then
-				    if ((fa_cnt = x"99") AND (machine_sel = "000")) OR   --ALS
-                       ((fa_cnt = x"BE") AND (machine_sel = "011")) OR   --Booster
-				       ((fa_cnt = x"25") AND (mach_alsorbstr = '0')) then   -- SR, Linac, LTB, BTS
+                    if ((fa_cnt = 8d"190") AND (tbt_params.mach_sel = "01")) OR   --Booster
+				       (fa_cnt = 8d"37") then  --SR
 						fa_trig_i <= '1';
 						fa_cnt <= (others => '0');
 			        else
@@ -415,9 +411,8 @@ process (adc_clk, reset)
 				    sa_cnt <= (others => '0');
 				end if;
 				if (tbt_trig_r = '1') then
-				    if ((sa_cnt = x"255A8") AND (machine_sel = "000")) OR   --ALS
-                       ((sa_cnt = x"2E630") AND (machine_sel = "011")) OR   --Booster
-				       ((sa_cnt = x"9470")  AND (mach_alsorbstr = '0')) then  --SR, Linac, LTB, BTS
+                    if ((sa_cnt = 20d"190000") AND (tbt_params.mach_sel = "01")) OR   --Booster
+				       (sa_cnt = 20d"38000")   then  --SR
 						sa_trig_i <= '1';
 						sa_cnt   <= (others => '0');
 			        else

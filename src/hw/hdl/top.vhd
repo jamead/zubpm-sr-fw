@@ -426,7 +426,6 @@ dsp_trigs : entity work.dsp_cntrl
 	adc_clk => adc_clk,               
 	tbt_extclk => evr_tbt_trig, --tbt_extclk, --evr_tbt_trig, 
 	reset => pl_reset,
-	machine_sel => ("101"), 
 	tbt_params => reg_o_tbt,
     inttrig_enb => reg_o_evr.event_src_sel,  
     evrsync_cnt => '0', 

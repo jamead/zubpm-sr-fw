@@ -68,6 +68,15 @@ XSysMonPsu SysMonInstance;  // Instance of the Sysmon Device
 //    UptimeCounter++;  // Increment uptime counter
 //}
 
+static uint32_t ioc_access_count = 0;
+
+
+uint32_t get_ioc_access_count(void)
+{
+    return __atomic_load_n(&ioc_access_count, __ATOMIC_RELAXED);
+}
+
+
 
 
 void print_firmware_version()
@@ -146,7 +155,8 @@ static void client_msg(void *pvt, psc_client *ckey, uint16_t msgid, uint32_t msg
     (void)pvt;
 
 	//xil_printf("In Client_Msg:  MsgID=%d   MsgLen=%d\r\n",msgid,msglen);
-
+    // Count each IOC message/access event and blink front panel LED.
+    __atomic_add_fetch(&ioc_access_count, 1, __ATOMIC_RELAXED);
 
     //blink front panel LED
     Xil_Out32(XPAR_M_AXI_BASEADDR + IOC_ACCESS_REG, 1);
@@ -295,18 +305,20 @@ int main()
    	Xil_Out32(XPAR_M_AXI_BASEADDR + EVENT_SRC_SEL_REG, 1);
 
     //read Timestamp
-    for (i=0;i<5;i++) {
-       ts_s = Xil_In32(XPAR_M_AXI_BASEADDR + EVR_TS_S_REG);
-       ts_ns = Xil_In32(XPAR_M_AXI_BASEADDR + EVR_TS_NS_REG);
-       xil_printf("ts= %d    %d\r\n",ts_s,ts_ns);
-       sleep(1);
-    }
+    //for (i=0;i<5;i++) {
+    //   ts_s = Xil_In32(XPAR_M_AXI_BASEADDR + EVR_TS_S_REG);
+    //   ts_ns = Xil_In32(XPAR_M_AXI_BASEADDR + EVR_TS_NS_REG);
+    //   xil_printf("ts= %d    %d\r\n",ts_s,ts_ns);
+    //   sleep(1);
+    //}
 
     // Initialize DMA lengths to initial values
 	Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_ADCBURSTLEN_REG, 10000);
 	Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_TBTBURSTLEN_REG, 10000);
 	Xil_Out32(XPAR_M_AXI_BASEADDR + DMA_FABURSTLEN_REG, 1000);
 
+	//Get settings from EEPROM and program PL
+	ReadEEPROMHardwareSettings();
 
 
 

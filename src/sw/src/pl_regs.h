@@ -54,6 +54,8 @@
 
 #define IOC_ACCESS_REG 0x70
 
+#define MACH_SEL_REG 0x74              // Selects between SR=0 and Booster=1
+
 #define KX_REG 0x90
 #define KY_REG 0x94
 #define CHA_GAIN_REG 0x98

@@ -51,7 +51,9 @@ void eeprom_dump();
 void menu_get_ipaddr();
 void prog_si570();
 void reg_settings(void *);
-
+uint32_t get_ioc_access_count(void);
+void thermistor_setup(void);
+void ReadEEPROMHardwareSettings(void);
 
 
 /* registers from Controller.v by word offset

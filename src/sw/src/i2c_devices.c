@@ -6,6 +6,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "zubpm.h"
+#include "pl_regs.h"
 
 
 extern XIicPs IicPsInstance;			/* Instance of the IIC Device */
@@ -90,9 +91,9 @@ void read_si569() {
        buf[0] = i+23;
        i2c_write(buf,1,0x56);
        stat = i2c_read(buf, 1, 0x56);
-       xil_printf("Stat: %d:   val0:%x  \r\n",stat, buf[0]);
+       //xil_printf("Stat: %d:   val0:%x  \r\n",stat, buf[0]);
 	}
-	xil_printf("\r\n");
+	//xil_printf("\r\n");
 }
 
 
@@ -101,7 +102,7 @@ void prog_si569() {
 
 	//xil_printf("Si571 Registers before re-programming...\r\n");
 	//read_si571();
-	xil_printf("Programming si569\r\n");
+	//xil_printf("Programming si569\r\n");
 
 
 	//Program New Registers
@@ -109,7 +110,7 @@ void prog_si569() {
 	    buf[0] = si569_values[i][0];
 	    buf[1] = si569_values[i][1];
 	    stat = i2c_write(buf, 2, 0x56);
-	    xil_printf("Stat: %d:   val0:%x  \r\n",stat, buf[0]);
+	    //xil_printf("Stat: %d:   val0:%x  \r\n",stat, buf[0]);
 	    usleep(50000);
 	}
 	//xil_printf("Si571 Registers after re-programming...\r\n");
@@ -151,6 +152,33 @@ void prog_si571() {
 	}
 	xil_printf("Si571 Registers after re-programming...\r\n");
     read_si571();
+}
+
+
+
+void ReadEEPROMHardwareSettings(void)  {
+
+
+    u8 rdBuf[8];
+    u8 val;
+
+    i2c_eeprom_readBytes(0x10, rdBuf, 8);
+    xil_printf("\r\nReading zuBPM Settings from EEPROM...\r\n");
+    // SR or Booster
+    val = rdBuf[0];
+    if (val == 0) {
+ 		printf("This is an SR zuBPM\r\n");
+ 		Xil_Out32(XPAR_M_AXI_BASEADDR + MACH_SEL_REG, 0);
+    }
+	else if (val == 1) {
+ 		printf("This is a Booster zuBPM\r\n");
+ 		Xil_Out32(XPAR_M_AXI_BASEADDR + MACH_SEL_REG, 1);
+	}
+	else {
+		Xil_Out32(XPAR_M_AXI_BASEADDR + MACH_SEL_REG, 0);
+	    xil_printf("Invalid Location Setting...\r\n");
+	}
+
 }
 
 
@@ -233,7 +261,8 @@ u8 i2c_eeprom_readByte(u8 addr){
 
 */
 void i2c_eeprom_writeBytes(u8 startAddr, u8 *data, u8 len){
-	i2c_set_port_expander(I2C_PORTEXP1_ADDR,0x80);
+	i2c_set_port_expander(I2C_PORTEXP0_ADDR,0x40);
+	i2c_set_port_expander(I2C_PORTEXP1_ADDR,0x0);
     u8 buf[len + 1];
     buf[0] = startAddr;
     for(int i = 0; i < len; i++) buf[i+1] = data[i];
@@ -243,7 +272,8 @@ void i2c_eeprom_writeBytes(u8 startAddr, u8 *data, u8 len){
 
 void i2c_eeprom_readBytes(u8 startAddr, u8 *data, u8 len){
 	u8 buf[] = {startAddr};
-	i2c_set_port_expander(I2C_PORTEXP1_ADDR,0x80);
+	i2c_set_port_expander(I2C_PORTEXP0_ADDR,0x40);
+	i2c_set_port_expander(I2C_PORTEXP1_ADDR,0x0);
     i2c_write(buf,1,IIC_EEPROM_ADDR);
     i2c_read(data,len,IIC_EEPROM_ADDR);
     //u8 buf[] = {startAddr};
@@ -278,48 +308,6 @@ void eeprom_dump()
 
 
 
-
-
-/*
-void eeprom_write_ipaddr()
-{
-  u8 ip_addr[16], wrBuf[128];
-  u8 octet1, octet2, octet3, octet4;
-
-  memset(wrBuf, 0, 128);
-
-
-  // Prompt the user to enter an IP address
-  printf("Enter an IP address (format: x.x.x.x): ");
-
-  // Read the IP address as four separate integers (octets)
-  if (scanf("%u%u%u%u", &octet1, &octet2, &octet3, &octet4) == 4) {
-        // Validate that each octet is within the range 0-255
-        if (octet1 <= 255 && octet2 <= 255 && octet3 <= 255 && octet4 <= 255) {
-            // Format and store the IP address as a string
-            snprintf((char *)wrBuf, sizeof(wrBuf), "%u.%u.%u.%u", octet1, octet2, octet3, octet4);
-            printf("IP Address Stored: %s\n", ip_addr);
-        } else {
-            printf("Error: One or more octets are out of range (0-255).\n");
-        }
-    } else
-        printf("Error: Invalid input format. Please enter in x.x.x.x format.\n");
-
-
-  printf("  Writing");
-  for (size_t loc = 0; loc < 128; loc += 16)
-  {
-    i2c_eeprom_writeBytes(loc, &wrBuf[loc], 16);
-    printf(".");
-    usleep(10*1000);
-  }
-  printf("\r\n");
-}
-*/
-
-
-
-
 void i2c_set_port_expander(u32 addr, u32 port)  {
 
     u8 buf[3];
@@ -347,7 +335,7 @@ void write_lmk61e2()
       buf[1] = (char) (regval & 0xFF);
       //xil_printf("Writing I2c\r\n");
       i2c_write(buf,2,0x5A);
-      xil_printf("LMK61e2 Write = 0x%x\t    B0 = %x    B1 = %x\r\n",regval, buf[0], buf[1]);
+      //xil_printf("LMK61e2 Write = 0x%x\t    B0 = %x    B1 = %x\r\n",regval, buf[0], buf[1]);
    };
 
 

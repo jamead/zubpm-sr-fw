@@ -32,8 +32,6 @@ typedef struct {
 
 
 
-static ip_t ip_settings;
-
 
 typedef struct {
   char entryCh;
@@ -105,41 +103,6 @@ void dump_eeprom(void)
 
 
 
-void set_resolution(void)
-{
-  u8 val;
-
-  xil_printf("\r\nSet Resolution of PSC: 0=MS (18bit), 1=HS (20bit)");
-  if ((val = get_binary_input()) != (u8)-1) {
-     i2c_eeprom_writeBytes(48, &val, 1);
-     xil_printf("Reboot for settings to take effect\r\n");
-  }
-}
-
-
-void program_ip(void)
-{
-  xil_printf("\r\nProgram IP address into EEPROM\r\n");
-  xil_printf("\r\nEnter an IP address (format: x.x.x.x):  ");
-  menu_get_ipaddr(ip_settings.ipaddr);
-  xil_printf("\r\nEnter a Netmask (format: x.x.x.x):  ");
-  menu_get_ipaddr(ip_settings.ipmask);
-  xil_printf("\r\nEnter an Gateway address (format: x.x.x.x):  ");
-  menu_get_ipaddr(ip_settings.ipgw);
-  xil_printf("\r\n");
-  xil_printf("IP Addr: %u.%u.%u.%u\r\n",ip_settings.ipaddr[0],ip_settings.ipaddr[1],ip_settings.ipaddr[2],ip_settings.ipaddr[3]);
-  xil_printf("Netmask: %u.%u.%u.%u\r\n",ip_settings.ipmask[0],ip_settings.ipmask[1],ip_settings.ipmask[2],ip_settings.ipmask[3]);
-  xil_printf("Gateway: %u.%u.%u.%u\r\n",ip_settings.ipgw[0],ip_settings.ipgw[1],ip_settings.ipgw[2],ip_settings.ipgw[3]);
-
-  i2c_eeprom_writeBytes(0, ip_settings.ipaddr, 4);
-  usleep(100000);
-  i2c_eeprom_writeBytes(16, ip_settings.ipmask, 4);
-  usleep(100000);
-  i2c_eeprom_writeBytes(32, ip_settings.ipgw, 4);
-  usleep(100000);
-  xil_printf("Reboot for settings to take effect\r\n");
-
-}
 
 // Read a line (blocking) from UART into buffer
 void uart_read_line(char *buffer, int max_len) {
@@ -171,6 +134,69 @@ void uart_read_line(char *buffer, int max_len) {
 }
 
 
+void machine_sel(void)
+{
+  u8 val;
+
+  xil_printf("\r\nzuBPM Location: 0 = SR,  1 = Booster\r\n");
+  if ((val = get_binary_input()) != (u8)-1) {
+     i2c_eeprom_writeBytes(0x20, &val, 1);
+     if (val == 0) {
+    	xil_printf("Setting to SR\r\n");
+        Xil_Out32(XPAR_M_AXI_BASEADDR + MACH_SEL_REG, 0);
+     }
+     else {
+     	xil_printf("Setting to Booster\r\n");
+        Xil_Out32(XPAR_M_AXI_BASEADDR + MACH_SEL_REG, 1);
+     }
+  }
+}
+
+
+void test_machine_eeprom(void)
+{
+    u8 wr = 0x5A;
+    u8 rd = 0xA5;
+
+    xil_printf("\r\nEEPROM test at address 0x20\r\n");
+
+    i2c_eeprom_writeBytes(0x20, &wr, 1);
+
+    vTaskDelay(pdMS_TO_TICKS(20));
+
+    xil_printf("Before read: 0x%02X\r\n", rd);
+
+    i2c_eeprom_readBytes(0x20, &rd, 1);
+
+    xil_printf("Wrote      : 0x%02X\r\n", wr);
+    xil_printf("Read       : 0x%02X\r\n", rd);
+
+    if (rd == wr)
+        xil_printf("EEPROM TEST PASSED\r\n");
+    else
+        xil_printf("EEPROM TEST FAILED\r\n");
+}
+
+
+
+
+
+void print_ip_address(void)
+{
+    if (server_netif.ip_addr.addr == 0) {
+        xil_printf("Assigned IP Address: not assigned\r\n");
+    } else {
+        xil_printf("Assigned IP Address: %s\r\n",
+                   inet_ntoa(server_netif.ip_addr.addr));
+    }
+}
+
+
+void print_ioc_access_count(void)
+{
+    printf("IOC access count: %lu\r\n",
+           (unsigned long)get_ioc_access_count());
+}
 
 
 
@@ -293,16 +319,18 @@ void console_menu()
 
     static const menu_entry_t menu[] = {
 	    {'A', "Dump EEPROM", dump_eeprom},
-		{'B', "Program IP Settings", program_ip},
-		{'C', "Set Resolution (HS or MS)", set_resolution},
-		{'D', "Reboot", reboot},
-	    {'F', "Print FreeRTOS Stats",  printTaskStats},
+		{'B', "Machine Select (SR or Booster)", machine_sel},
+		{'C', "Reboot", reboot},
+	    {'D', "Print FreeRTOS Stats",  printTaskStats},
+		{'E', "Print Assigned IP Address",  print_ip_address},
+		{'F', "Print IOC Access Count", print_ioc_access_count},
+		{'G', "Test EEPROM", test_machine_eeprom},
 	};
 	static const size_t menulen = sizeof(menu)/sizeof(menu_entry_t);
 
-	xil_printf("Running PSC Menu (len = %ld)\r\n", menulen);
+	xil_printf("Running zuBPM Menu (len = %ld)\r\n", menulen);
 
-	exec_menu("Select an option:", menu, menulen);
+	exec_menu("zuBPM options:", menu, menulen);
 
 	}
 

@@ -217,6 +217,7 @@ type t_reg_o_tbt is record
     gate_delay     : std_logic_vector(8 downto 0); 
     gate_width     : std_logic_vector(8 downto 0);
     ddc_lpfilt_sel : std_logic; --0=4 tap FIR, 1=100 tap FIR
+    mach_sel       : std_logic_vector(1 downto 0);
 end record t_reg_o_tbt;
 
 
