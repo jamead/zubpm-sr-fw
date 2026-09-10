@@ -21,14 +21,15 @@
 /* Hardware support includes */
 #include "pl_regs.h"
 #include "local.h"
+#include "zubpm.h"
 
 #define MAX_INPUT_LEN      64
 
-typedef struct {
-  u8 ipaddr[4];
-  u8 ipmask[4];
-  u8 ipgw[4];
-} ip_t;
+//typedef struct {
+//  u8 ipaddr[4];
+//  u8 ipmask[4];
+//  u8 ipgw[4];
+//} ip_t;
 
 
 
@@ -153,28 +154,109 @@ void machine_sel(void)
 }
 
 
-void test_machine_eeprom(void)
+void set_kx_ky_console(void)
 {
-    u8 wr = 0x5A;
-    u8 rd = 0xA5;
+    char buffer[MAX_INPUT_LEN];
+    char *endptr;
 
-    xil_printf("\r\nEEPROM test at address 0x20\r\n");
+    float kx_mm;
+    float ky_mm;
 
-    i2c_eeprom_writeBytes(0x20, &wr, 1);
+    u32 kx_nm;
+    u32 ky_nm;
 
-    vTaskDelay(pdMS_TO_TICKS(20));
+    xil_printf("\r\nEnter Kx in mm: ");
+    uart_read_line(buffer, MAX_INPUT_LEN);
 
-    xil_printf("Before read: 0x%02X\r\n", rd);
+    kx_mm = strtof(buffer, &endptr);
 
-    i2c_eeprom_readBytes(0x20, &rd, 1);
+    if (endptr == buffer || *endptr != '\0') {
+        printf("Invalid Kx value\r\n");
+        return;
+    }
 
-    xil_printf("Wrote      : 0x%02X\r\n", wr);
-    xil_printf("Read       : 0x%02X\r\n", rd);
+    xil_printf("\r\nEnter Ky in mm: ");
+    uart_read_line(buffer, MAX_INPUT_LEN);
 
-    if (rd == wr)
-        xil_printf("EEPROM TEST PASSED\r\n");
-    else
-        xil_printf("EEPROM TEST FAILED\r\n");
+    ky_mm = strtof(buffer, &endptr);
+
+    if (endptr == buffer || *endptr != '\0') {
+        printf("Invalid Ky value\r\n");
+        return;
+    }
+
+    /* Convert mm -> nm */
+    kx_nm = (u32)(kx_mm * 1000000.0f + 0.5f);
+    ky_nm = (u32)(ky_mm * 1000000.0f + 0.5f);
+
+    /* Program FPGA */
+    set_kxky(HOR, kx_nm);
+    set_kxky(VERT, ky_nm);
+
+    /* Save persistent copy */
+    save_kxky_eeprom(kx_nm, ky_nm);
+
+    printf("\r\nKx = %.4f mm = %lu nm\r\n",
+           kx_mm, (unsigned long)kx_nm);
+
+    printf("Ky = %.4f mm = %lu nm\r\n",
+           ky_mm, (unsigned long)ky_nm);
+}
+
+
+void display_all_settings(void)
+{
+    u32 machine_sel;
+    u32 kx_nm;
+    u32 ky_nm;
+
+    machine_sel = Xil_In32(XPAR_M_AXI_BASEADDR + MACH_SEL_REG);
+    kx_nm       = Xil_In32(XPAR_M_AXI_BASEADDR + KX_REG);
+    ky_nm       = Xil_In32(XPAR_M_AXI_BASEADDR + KY_REG);
+
+    xil_printf("\r\n");
+    xil_printf("========================================\r\n");
+    xil_printf("            zuBPM Settings\r\n");
+    xil_printf("========================================\r\n");
+
+    /* Machine selection */
+    if (machine_sel == 0) {
+        xil_printf("Machine Select   : Storage Ring\r\n");
+    }
+    else if (machine_sel == 1) {
+        xil_printf("Machine Select   : Booster\r\n");
+    }
+    else {
+        xil_printf("Machine Select   : Invalid (%lu)\r\n",
+                   (unsigned long)machine_sel);
+    }
+
+    /* IP address */
+    if (server_netif.ip_addr.addr == 0) {
+        xil_printf("IP Address       : Not assigned\r\n");
+    }
+    else {
+        xil_printf("IP Address       : %s\r\n",
+                   inet_ntoa(server_netif.ip_addr.addr));
+    }
+
+    /* IOC access count */
+    xil_printf("IOC Access Count : %lu\r\n",
+               (unsigned long)get_ioc_access_count());
+
+    /*
+     * Kx/Ky are stored in the FPGA in nm.
+     * Use printf here because we want floating-point mm display.
+     */
+    printf("Kx               : %.4f mm (%lu nm)\r\n",
+           (float)kx_nm / 1000000.0f,
+           (unsigned long)kx_nm);
+
+    printf("Ky               : %.4f mm (%lu nm)\r\n",
+           (float)ky_nm / 1000000.0f,
+           (unsigned long)ky_nm);
+
+    xil_printf("========================================\r\n\r\n");
 }
 
 
@@ -250,19 +332,42 @@ void exec_menu(const char *head, const menu_entry_t *m, size_t m_len)
   }
 }
 
+#define ZYNQMP_RESET_CTRL_ADDR   0xFF5E0218U
+#define ZYNQMP_SOFT_RESET        0x00000010U
 
-void reboot() {
+void reboot(void)
+{
+    u8 val;
 
-	u8 val;
+    xil_printf("\r\nAre you sure you want to reboot?\r\n");
+    xil_printf("Press 1 to continue, any other key to not reboot\r\n");
 
-	xil_printf("\r\nAre you sure you want to reboot?\r\n");
-	xil_printf("Press 1 to continue, any other key to not reboot\r\n");
-	if ((val = get_binary_input()) == 1) {
-      Xil_Out32(XPS_SYS_CTRL_BASEADDR | 0x008, 0xDF0D); // SLCR SLCR_UNLOCK
-      Xil_Out32(XPS_SYS_CTRL_BASEADDR | 0x200, 0x1); // SLCR PSS_RST_CTRL[SOFT_RST]
-	}
+    val = get_binary_input();
 
+    if (val == 1) {
+
+        xil_printf("\r\nRebooting zuBPM...\r\n");
+
+        /*
+         * Give UART time to transmit the message before resetting.
+         */
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+        /*
+         * Zynq UltraScale+ MPSoC system reset.
+         * CRL_APB.RESET_CTRL[soft_reset] = 1
+         */
+        Xil_Out32(ZYNQMP_RESET_CTRL_ADDR, ZYNQMP_SOFT_RESET);
+
+        /*
+         * We should never get here.
+         */
+        while (1);
+    }
+
+    xil_printf("Reboot cancelled\r\n");
 }
+
 
 
 static
@@ -318,13 +423,14 @@ void console_menu()
     vTaskDelay(pdMS_TO_TICKS(10));
 
     static const menu_entry_t menu[] = {
-	    {'A', "Dump EEPROM", dump_eeprom},
+		{'A', "Display All Settings", display_all_settings},
 		{'B', "Machine Select (SR or Booster)", machine_sel},
 		{'C', "Reboot", reboot},
 	    {'D', "Print FreeRTOS Stats",  printTaskStats},
 		{'E', "Print Assigned IP Address",  print_ip_address},
 		{'F', "Print IOC Access Count", print_ioc_access_count},
-		{'G', "Test EEPROM", test_machine_eeprom},
+		{'G', "Set Kx and Ky (mm)", set_kx_ky_console},
+		{'H', "Dump EEPROM", dump_eeprom},
 	};
 	static const size_t menulen = sizeof(menu)/sizeof(menu_entry_t);
 

@@ -24,6 +24,16 @@
 #define I2C_PORTEXP1_ADDR 0x71
 
 
+#define EEPROM_MACHINE_ADDR   0x20
+#define EEPROM_KX_ADDR        0x24
+#define EEPROM_KY_ADDR        0x28
+
+void save_kxky_eeprom(u32 kx_nm, u32 ky_nm);
+
+
+
+
+
 typedef struct {
   u8 ipaddr[4];
   u8 ipmask[4];

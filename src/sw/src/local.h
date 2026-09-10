@@ -16,6 +16,10 @@
 #define MAX_TASKS 16
 
 
+
+
+
+
 // parsed from NET.CNF
 typedef struct {
     ip_addr_t addr, mask, gw;
@@ -54,6 +58,10 @@ void reg_settings(void *);
 uint32_t get_ioc_access_count(void);
 void thermistor_setup(void);
 void ReadEEPROMHardwareSettings(void);
+
+void set_kxky_console(void);
+void set_kxky(u32 axis, u32 value_nm);
+void save_kxky_eeprom(u32 kx_nm, u32 ky_nm);
 
 
 /* registers from Controller.v by word offset
