@@ -9,6 +9,8 @@
 #include <sleep.h>
 #include "xiicps.h"
 #include "xuartps_hw.h"
+#include "pm_api_sys.h"
+#include "pm_defs.h"
 
 
 #include "lwip/sockets.h"
@@ -332,42 +334,6 @@ void exec_menu(const char *head, const menu_entry_t *m, size_t m_len)
   }
 }
 
-#define ZYNQMP_RESET_CTRL_ADDR   0xFF5E0218U
-#define ZYNQMP_SOFT_RESET        0x00000010U
-
-void reboot(void)
-{
-    u8 val;
-
-    xil_printf("\r\nAre you sure you want to reboot?\r\n");
-    xil_printf("Press 1 to continue, any other key to not reboot\r\n");
-
-    val = get_binary_input();
-
-    if (val == 1) {
-
-        xil_printf("\r\nRebooting zuBPM...\r\n");
-
-        /*
-         * Give UART time to transmit the message before resetting.
-         */
-        vTaskDelay(pdMS_TO_TICKS(100));
-
-        /*
-         * Zynq UltraScale+ MPSoC system reset.
-         * CRL_APB.RESET_CTRL[soft_reset] = 1
-         */
-        Xil_Out32(ZYNQMP_RESET_CTRL_ADDR, ZYNQMP_SOFT_RESET);
-
-        /*
-         * We should never get here.
-         */
-        while (1);
-    }
-
-    xil_printf("Reboot cancelled\r\n");
-}
-
 
 
 static
@@ -408,7 +374,30 @@ void printTaskStats(void)
 }
 
 
+void reboot(void)
+{
+    u8 val;
 
+    xil_printf("\r\nAre you sure you want to reboot?\r\n");
+    xil_printf("Press 1 to continue, any other key to not reboot\r\n");
+
+    val = get_binary_input();
+
+    if (val != 1) {
+        xil_printf("Reboot cancelled\r\n");
+        return;
+    }
+
+    xil_printf("\r\nRebooting zuBPM...\r\n");
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    XPm_SystemShutdown(
+        PMF_SHUTDOWN_TYPE_RESET,
+        PMF_SHUTDOWN_SUBTYPE_SYSTEM);
+
+    while (1);
+}
 
 
 
